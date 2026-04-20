@@ -1,0 +1,6 @@
+src/
+__tests__/
+tsconfig.json
+*.map
+.eslintrc*
+jest.config*
