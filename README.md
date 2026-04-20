@@ -108,8 +108,8 @@ Every request (allowed or blocked) receives these headers:
 
 | Header | Description |
 |---|---|
-| `X-Quota-Remaining` | Remaining operations in the current window |
-| `X-Quota-Limit` | The configured limit |
+| `Quota-Remaining` | Remaining operations in the current window |
+| `Quota-Limit` | The configured limit |
 
 When the quota is exceeded, the middleware responds with `HTTP 429`:
 
@@ -173,11 +173,30 @@ class MySQLDriver implements QuotaStorage {
 |---|---|---|---|
 | `storage` | `QuotaStorage` | **required** | The storage driver to use |
 | `keyGenerator` | `(req) => string` | **required** | Returns the quota key for a request |
-| `limit` | `number` | `100` | Max operations per window |
+| `limit` | `number \| (req) => number \| Promise<number>` | `100` | Max operations per window — static or per-request |
 | `errorMessage` | `string` | `"Quota exceeded"` | Message returned on 429 |
 | `failOpen` | `boolean` | `true` | Pass requests through on storage errors |
 | `onQuotaChecked` | `(ctx) => void` | — | Fired after every check |
 | `onQuotaExceeded` | `(ctx) => void` | — | Fired only when blocked |
+
+#### Dynamic limits
+
+The `limit` option can resolve limits dynamically per-request — ideal for multi-tenant apps with different plans:
+
+```typescript
+const emailQuota = createQuotaLimiter({
+  storage: new RedisDriver(redis),
+  limit: async (req) => {
+    const tenant = await db.query(
+      "SELECT plan FROM tenants WHERE id = $1",
+      [req.tenantId]
+    );
+    // Pro plan: 5000/month, free plan: 500/month
+    return tenant.plan === "pro" ? 5000 : 500;
+  },
+  keyGenerator: (req) => `quota:emails:${req.tenantId}`,
+});
+```
 
 ---
 

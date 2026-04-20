@@ -18,12 +18,27 @@ export interface QuotaStorage {
 }
 
 /**
+ * A limit value — either a static number or a (possibly async) function
+ * that receives the request and returns the limit for that specific request.
+ *
+ * @example Static
+ * limit: 500
+ *
+ * @example Dynamic — per-tenant plan
+ * limit: async (req) => {
+ *   const tenant = await db.query("SELECT plan FROM tenants WHERE id = $1", [req.tenantId]);
+ *   return tenant.plan === "pro" ? 10_000 : 500;
+ * }
+ */
+export type LimitResolver = number | ((req: Request) => number | Promise<number>);
+
+/**
  * Context passed to the onQuotaExceeded callback.
  */
 export interface QuotaExceededContext {
   /** The quota key that was exceeded (e.g. "quota:emails:tenant_42") */
   key: string;
-  /** The configured limit */
+  /** The resolved limit for this request */
   limit: number;
   /** The incoming request */
   req: Request;
@@ -35,7 +50,7 @@ export interface QuotaExceededContext {
 export interface QuotaCheckedContext {
   /** The quota key that was checked */
   key: string;
-  /** The configured limit */
+  /** The resolved limit for this request */
   limit: number;
   /** Whether the request was allowed (true) or blocked (false) */
   success: boolean;
@@ -60,9 +75,19 @@ export interface QuotaOptions {
 
   /**
    * The maximum number of allowed operations per window.
+   * Can be a static number or an async function for dynamic per-request limits.
    * @default 100
+   *
+   * @example Static
+   * limit: 500
+   *
+   * @example Dynamic — different limit per tenant plan
+   * limit: async (req) => {
+   *   const { plan } = await db.query("SELECT plan FROM tenants WHERE id = $1", [req.tenantId]);
+   *   return plan === "pro" ? 10_000 : 500;
+   * }
    */
-  limit?: number;
+  limit?: LimitResolver;
 
   /**
    * Custom error message sent to the client when the quota is exceeded.
@@ -82,15 +107,6 @@ export interface QuotaOptions {
    *
    * Ideal for: saving remaining quota to your DB, sending metrics to Datadog/Prometheus,
    * building usage dashboards, alerting when a tenant is running low, etc.
-   *
-   * @example
-   * onQuotaChecked: async ({ key, success, remaining, req }) => {
-   *   await db.query(
-   *     "UPDATE tenants SET quota_remaining = $1 WHERE id = $2",
-   *     [remaining, req.tenantId]
-   *   );
-   *   if (remaining < 50) await alertSlack(`Tenant ${req.tenantId} is low on quota`);
-   * }
    */
   onQuotaChecked?: (ctx: QuotaCheckedContext) => Promise<void> | void;
 
@@ -99,14 +115,6 @@ export interface QuotaOptions {
    * Runs fire-and-forget — errors are caught and logged, never bubble up.
    *
    * Ideal for: logging violations to a DB, sending billing alerts, notifying the tenant, etc.
-   *
-   * @example
-   * onQuotaExceeded: async ({ key, limit, req }) => {
-   *   await db.query(
-   *     "INSERT INTO quota_violations (tenant_id, key, at) VALUES ($1, $2, NOW())",
-   *     [req.tenantId, key]
-   *   );
-   * }
    */
   onQuotaExceeded?: (ctx: QuotaExceededContext) => Promise<void> | void;
 }

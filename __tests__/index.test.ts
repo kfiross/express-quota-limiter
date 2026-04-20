@@ -307,3 +307,89 @@ describe("onQuotaChecked callback", () => {
     expect(mockNext).toHaveBeenCalledTimes(1);
   });
 });
+
+
+describe("dynamic limit", () => {
+  let driver: MemoryDriver;
+
+  beforeEach(() => {
+    driver = new MemoryDriver();
+    jest.clearAllMocks();
+  });
+
+  it("accepts a static number (backward compatible)", async () => {
+    const middleware = createQuotaLimiter({
+      storage: driver,
+      limit: 3,
+      keyGenerator: () => "k",
+    });
+
+    const { res, headers } = mockRes();
+    await middleware(mockReq(), res, mockNext);
+    expect(headers["Quota-Limit"]).toBe("3");
+    expect(mockNext).toHaveBeenCalledTimes(1);
+  });
+
+  it("accepts a sync function", async () => {
+    const middleware = createQuotaLimiter({
+      storage: driver,
+      limit: (req: any) => (req.plan === "pro" ? 1000 : 100),
+      keyGenerator: () => "k",
+    });
+
+    const { res, headers } = mockRes();
+    await middleware(mockReq({ plan: "pro" }), res, mockNext);
+    expect(headers["Quota-Limit"]).toBe("1000");
+  });
+
+  it("accepts an async function", async () => {
+    const fetchLimit = jest.fn().mockResolvedValue(250);
+
+    const middleware = createQuotaLimiter({
+      storage: driver,
+      limit: async () => fetchLimit(),
+      keyGenerator: () => "k",
+    });
+
+    const { res, headers } = mockRes();
+    await middleware(mockReq(), res, mockNext);
+    expect(fetchLimit).toHaveBeenCalledTimes(1);
+    expect(headers["Quota-Limit"]).toBe("250");
+  });
+
+  it("different tenants get different limits", async () => {
+    const middleware = createQuotaLimiter({
+      storage: driver,
+      limit: (req: any) => (req.tenantId === "enterprise" ? 9999 : 50),
+      keyGenerator: (req: any) => `k:${req.tenantId}`,
+    });
+
+    const { res: r1, headers: h1 } = mockRes();
+    await middleware(mockReq({ tenantId: "enterprise" }), r1, mockNext);
+
+    const { res: r2, headers: h2 } = mockRes();
+    await middleware(mockReq({ tenantId: "free" }), r2, mockNext);
+
+    expect(h1["Quota-Limit"]).toBe("9999");
+    expect(h2["Quota-Limit"]).toBe("50");
+  });
+
+  it("passes the resolved limit into onQuotaChecked", async () => {
+    const onQuotaChecked = jest.fn().mockResolvedValue(undefined);
+
+    const middleware = createQuotaLimiter({
+      storage: driver,
+      limit: async () => 777,
+      keyGenerator: () => "k",
+      onQuotaChecked,
+    });
+
+    const { res } = mockRes();
+    await middleware(mockReq(), res, mockNext);
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(onQuotaChecked).toHaveBeenCalledWith(
+      expect.objectContaining({ limit: 777 })
+    );
+  });
+});

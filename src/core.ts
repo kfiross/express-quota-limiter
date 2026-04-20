@@ -1,5 +1,9 @@
 import { Request, Response, NextFunction } from "express";
-import { QuotaOptions } from "./types";
+import { QuotaOptions, LimitResolver } from "./types";
+
+const resolveLimit = async (limit: LimitResolver, req: Request): Promise<number> => {
+  return typeof limit === "function" ? await limit(req) : limit;
+};
 
 const fireAndForget = (label: string, fn: () => Promise<void> | void) => {
   Promise.resolve()
@@ -11,7 +15,7 @@ export const createQuotaLimiter = (options: QuotaOptions) => {
   const {
     storage,
     keyGenerator,
-    limit = 100,
+    limit: limitOption = 100,
     errorMessage = "Quota exceeded",
     failOpen = true,
     onQuotaChecked,
@@ -28,12 +32,14 @@ export const createQuotaLimiter = (options: QuotaOptions) => {
         return;
       }
 
+      // Resolve the limit — static number or async function
+      const limit = await resolveLimit(limitOption, req);
+
       const { success, remaining } = await storage.decrement(key, limit);
 
       res.setHeader("Quota-Remaining", remaining.toString());
       res.setHeader("Quota-Limit", limit.toString());
 
-      // Always fire onQuotaChecked — pass or fail
       if (onQuotaChecked) {
         fireAndForget("onQuotaChecked", () =>
           onQuotaChecked({ key, limit, success, remaining, req })
@@ -41,7 +47,6 @@ export const createQuotaLimiter = (options: QuotaOptions) => {
       }
 
       if (!success) {
-        // Fire onQuotaExceeded only on blocked requests
         if (onQuotaExceeded) {
           fireAndForget("onQuotaExceeded", () =>
             onQuotaExceeded({ key, limit, req })
