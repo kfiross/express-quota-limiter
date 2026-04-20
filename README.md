@@ -22,6 +22,9 @@ Unlike traditional rate limiters that operate per-second or per-minute, `express
 ```bash
 npm install express-quota-limiter
 ```
+```bash
+yarn add express-quota-limiter
+```
 
 ### Peer dependencies
 
