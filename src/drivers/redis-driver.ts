@@ -5,7 +5,7 @@ import { QuotaStorage, QuotaResult } from "../types";
  *
  * Uses a Redis pipeline (MULTI/EXEC) to atomically:
  *   1. SET the key to `limit` only if it does NOT already exist (NX), with a TTL.
- *   2. DECR the key.
+ *   2. DECRBY the key (for weighted quotas) or DECR by 1 (for simple quotas).
  *
  * This guarantees no race conditions without requiring a Lua script.
  *
@@ -26,13 +26,13 @@ export class RedisDriver implements QuotaStorage {
     private options: RedisDriverOptions = {}
   ) {}
 
-  async decrement(key: string, limit: number = 100): Promise<QuotaResult> {
+  async decrement(key: string, limit: number = 100, weight: number = 1): Promise<QuotaResult> {
     const ttlSeconds = this.options.ttlSeconds ?? DEFAULT_TTL_SECONDS;
 
     /**
      * Pipeline:
      *  - SET key limit NX EX ttl  → initialises ONLY if missing
-     *  - DECR key                 → atomically subtracts 1
+     *  - DECRBY key weight         → atomically subtracts weight
      *
      * Both ioredis and node-redis v4 support .multi().exec().
      * For node-redis the pipeline API differs slightly; we handle both.
@@ -44,7 +44,7 @@ export class RedisDriver implements QuotaStorage {
       const results = await this.client
         .multi()
         .set(key, limit, { NX: true, EX: ttlSeconds })
-        .decr(key)
+        .decrBy(key, weight)
         .exec();
 
       remaining = results[1] as number;
@@ -53,7 +53,7 @@ export class RedisDriver implements QuotaStorage {
       const results = await this.client
         .multi()
         .set(key, limit, "NX", "EX", ttlSeconds)
-        .decr(key)
+        .decrby(key, weight)
         .exec();
 
       // ioredis returns [error, value] tuples
@@ -64,6 +64,15 @@ export class RedisDriver implements QuotaStorage {
       success: remaining >= 0,
       remaining: Math.max(0, remaining),
     };
+  }
+
+  
+  async increment(key: string, weight: number = 1): Promise<void> {
+    if (isNodeRedisClient(this.client)) {
+      await this.client.incrBy(key, weight);
+    } else {
+      await this.client.incrby(key, weight);
+    }
   }
 }
 

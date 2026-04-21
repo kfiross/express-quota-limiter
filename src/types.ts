@@ -14,7 +14,14 @@ export interface QuotaResult {
  * The interface every storage driver must implement.
  */
 export interface QuotaStorage {
-  decrement(key: string, limit?: number): Promise<QuotaResult>;
+  decrement(key: string, limit?: number, weight?: number): Promise<QuotaResult>;
+  /**
+   * Increments the quota for a given key by the specified weight.
+   * This is used to "refund" quota when requests are successful.
+   * @param key The quota key.
+   * @param weight The amount to increment by.
+   */
+  increment(key: string, weight: number): Promise<void>;
 }
 
 /**
@@ -40,8 +47,15 @@ export interface QuotaExceededContext {
   key: string;
   /** The resolved limit for this request */
   limit: number;
+  /** The calculated weight of the current request */
+  weight: number;
   /** The incoming request */
   req: Request;
+}
+
+export interface QuotaWeightOptions {
+  getWeight: ((req: Request) => number | Promise<number>);
+  defaultWeight?: number
 }
 
 /**
@@ -52,6 +66,8 @@ export interface QuotaCheckedContext {
   key: string;
   /** The resolved limit for this request */
   limit: number;
+  /** The calculated weight of the current request */
+  weight: number;
   /** Whether the request was allowed (true) or blocked (false) */
   success: boolean;
   /** Remaining quota after this operation. Always >= 0. */
@@ -117,4 +133,9 @@ export interface QuotaOptions {
    * Ideal for: logging violations to a DB, sending billing alerts, notifying the tenant, etc.
    */
   onQuotaExceeded?: (ctx: QuotaExceededContext) => Promise<void> | void;
+
+  /**
+   * Options for configuring quota weighting.
+   */
+  quotaWeight: QuotaWeightOptions
 }

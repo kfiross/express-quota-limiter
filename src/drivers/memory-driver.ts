@@ -26,7 +26,7 @@ export class MemoryDriver implements QuotaStorage {
 
   constructor(private options: MemoryDriverOptions = {}) {}
 
-  async decrement(key: string, limit: number = 100): Promise<QuotaResult> {
+  async decrement(key: string, limit: number = 100, weight: number = 1): Promise<QuotaResult> {
     const ttlSeconds = this.options.ttlSeconds ?? DEFAULT_TTL_SECONDS;
     const now = Date.now();
 
@@ -35,20 +35,27 @@ export class MemoryDriver implements QuotaStorage {
     if (!entry || entry.expiresAt <= now) {
       // Key is new or expired — initialise, then decrement
       this.store.set(key, {
-        remaining: limit - 1,
+        remaining: limit - weight,
         expiresAt: now + ttlSeconds * 1000,
       });
 
-      return { success: true, remaining: limit - 1 };
+      return { success: true, remaining: limit - weight };
     }
 
-    const remaining = entry.remaining - 1;
+    const remaining = entry.remaining - weight;
     this.store.set(key, { ...entry, remaining });
 
     return {
       success: remaining >= 0,
       remaining: Math.max(0, remaining),
     };
+  }
+
+  async increment(key: string, weight: number = 1): Promise<void> {
+    const entry = this.store.get(key);
+    if (entry) {
+      this.store.set(key, { ...entry, remaining: entry.remaining + weight });
+    }
   }
 
   /**

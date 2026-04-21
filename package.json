@@ -1,6 +1,6 @@
 {
   "name": "express-quota-limiter",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "A flexible, driver-based quota limiter middleware for Express.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
