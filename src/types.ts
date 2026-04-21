@@ -53,11 +53,6 @@ export interface QuotaExceededContext {
   req: Request;
 }
 
-export interface QuotaWeightOptions {
-  getWeight: ((req: Request) => number | Promise<number>);
-  defaultWeight?: number
-}
-
 /**
  * Context passed to the onQuotaChecked callback — fired after every check, pass or fail.
  */
@@ -136,6 +131,8 @@ export interface QuotaOptions {
 
   /**
    * Options for configuring quota weighting.
+   * @example Request-based 'weight' based on request body
+   * quotaWeight: async (req) => req.body.count || 1;
    */
-  quotaWeight?: QuotaWeightOptions
+  quotaWeight?: (req: Request) => number | Promise<number>
 }

@@ -20,7 +20,7 @@ export const createQuotaLimiter = (options: QuotaOptions) => {
     failOpen = true,
     onQuotaChecked,
     onQuotaExceeded,
-    quotaWeight = { getWeight: async () => 1, defaultWeight: 1 },
+    quotaWeight,
   } = options;
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
@@ -36,7 +36,7 @@ export const createQuotaLimiter = (options: QuotaOptions) => {
       // Resolve the limit — static number or async function
       const limit = await resolveLimit(limitOption, req);
 
-      const weight = await quotaWeight.getWeight(req) || quotaWeight.defaultWeight || 1;
+      const weight = await quotaWeight?.(req) || 1
 
       const { success, remaining } = await storage.decrement(key, limit, weight);
 

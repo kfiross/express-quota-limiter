@@ -9,6 +9,8 @@ Unlike traditional rate limiters that operate per-second or per-minute, `express
 - 🔌 **Driver-based** — Redis, in-memory, or bring your own
 - 🔒 **Atomic operations** — no race conditions (Redis pipeline / NX)
 - 🏷 **Custom keys** — per-tenant, per-user, per-route, or any combination
+- ⚖️ **Request weighting** — charge different amounts per request (e.g. bulk actions)
+- ➕ **Manual increment API** — increment quota usage programmatically
 - 📦 **Zero mandatory dependencies** — storage clients are peer-injected
 - 🧪 **Testable** — built-in `MemoryDriver` needs no infrastructure
 - 💬 **TypeScript-first** — full types, no `@types/` package needed
@@ -100,8 +102,8 @@ const emailQuota = createQuotaLimiter({
 
 | Callback | Fields available |
 |---|---|
-| `onQuotaChecked` | `key`, `limit`, `success`, `remaining`, `req` |
-| `onQuotaExceeded` | `key`, `limit`, `req` |
+| `onQuotaChecked` | `key`, `limit`, `success`, `remaining`, `req`, `weight` |
+| `onQuotaExceeded` | `key`, `limit`, `req`, `weight` |
 
 ---
 
@@ -165,6 +167,34 @@ class MySQLDriver implements QuotaStorage {
   }
 }
 ```
+
+## Request Weighting
+
+You can charge different quota amounts per request using the `quotaWeight` option. This is useful for endpoints where some requests are more expensive than others (e.g. sending 1 vs 100 emails).
+
+```typescript
+const quota = createQuotaLimiter({
+  storage: new RedisDriver(redis),
+  limit: 1000,
+  keyGenerator: (req) => req.userId,
+  quotaWeight: (req) => req.body.count || 1, // charge by count
+});
+```
+
+The calculated `weight` is passed to storage drivers and available in callbacks.
+---
+
+## Manual Increment
+
+You can manually increment quota usage (e.g. for compensating failed actions or admin adjustments) using the driver's `increment` method:
+
+```typescript
+// Example: increment usage by 10 for a user
+await driver.increment('quota:emails:user123', 10);
+```
+
+All built-in drivers support this method. The `weight` parameter lets you increment by any amount.
+
 
 ---
 
