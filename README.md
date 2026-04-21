@@ -182,6 +182,7 @@ const quota = createQuotaLimiter({
 ```
 
 The calculated `weight` is passed to storage drivers and available in callbacks.
+
 ---
 
 ## Manual Increment
@@ -211,6 +212,7 @@ All built-in drivers support this method. The `weight` parameter lets you increm
 | `failOpen` | `boolean` | `true` | Pass requests through on storage errors |
 | `onQuotaChecked` | `(ctx) => void` | — | Fired after every check |
 | `onQuotaExceeded` | `(ctx) => void` | — | Fired only when blocked |
+| `quotaWeight` | `number \| (req) => number \| Promise<number>` | — | Calculate how much quota each request consumes (Like sending bulk emails) |
 
 #### Dynamic limits
 
