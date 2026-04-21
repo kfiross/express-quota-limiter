@@ -1,6 +1,6 @@
 {
   "name": "express-quota-limiter",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "A flexible, driver-based quota limiter middleware for Express.js",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
@@ -29,12 +29,12 @@
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/YOUR_USERNAME/express-quota-limiter.git"
+    "url": "https://github.com/kfiross/express-quota-limiter.git"
   },
   "bugs": {
-    "url": "https://github.com/YOUR_USERNAME/express-quota-limiter/issues"
+    "url": "https://github.com/kfiross/express-quota-limiter/issues"
   },
-  "homepage": "https://github.com/YOUR_USERNAME/express-quota-limiter#readme",
+  "homepage": "https://github.com/kfiross/express-quota-limiter#readme",
   "peerDependencies": {
     "express": "^4.0.0 || ^5.0.0"
   },
