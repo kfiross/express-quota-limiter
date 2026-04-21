@@ -20,7 +20,7 @@ export const createQuotaLimiter = (options: QuotaOptions) => {
     failOpen = true,
     onQuotaChecked,
     onQuotaExceeded,
-    quotaWeight,
+    quotaWeight = { getWeight: async () => 1, defaultWeight: 1 },
   } = options;
 
   return async (req: Request, res: Response, next: NextFunction): Promise<void> => {

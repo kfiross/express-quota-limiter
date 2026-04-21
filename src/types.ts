@@ -137,5 +137,5 @@ export interface QuotaOptions {
   /**
    * Options for configuring quota weighting.
    */
-  quotaWeight: QuotaWeightOptions
+  quotaWeight?: QuotaWeightOptions
 }
