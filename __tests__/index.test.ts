@@ -74,7 +74,10 @@ describe("createQuotaLimiter — core middleware", () => {
   });
 
   it("fails open when storage throws and failOpen=true", async () => {
-    const broken = { decrement: jest.fn().mockRejectedValue(new Error("Redis down")) };
+    const broken = {
+      decrement: jest.fn().mockRejectedValue(new Error("Redis down")),
+      increment: jest.fn().mockRejectedValue(new Error("Redis down")),
+    };
     const middleware = createQuotaLimiter({ storage: broken, limit: 10, keyGenerator: () => "k", failOpen: true });
     const { res } = mockRes();
     await middleware(mockReq(), res, mockNext);
@@ -83,7 +86,10 @@ describe("createQuotaLimiter — core middleware", () => {
   });
 
   it("returns 500 when storage throws and failOpen=false", async () => {
-    const broken = { decrement: jest.fn().mockRejectedValue(new Error("Redis down")) };
+    const broken = {
+      decrement: jest.fn().mockRejectedValue(new Error("Redis down")),
+      increment: jest.fn().mockRejectedValue(new Error("Redis down")),
+    };
     const middleware = createQuotaLimiter({ storage: broken, limit: 10, keyGenerator: () => "k", failOpen: false });
     const { res } = mockRes();
     await middleware(mockReq(), res, mockNext);
